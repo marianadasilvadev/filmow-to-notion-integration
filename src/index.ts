@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import { parse } from 'node-html-parser'
+import fetch from 'node-fetch'
 import { Notion } from './notion'
 import readline from 'readline'
 import { Medias } from './medias/medias'
@@ -8,8 +10,19 @@ const readlineInterface = readline.createInterface({
   output: process.stdout
 })
 
-readlineInterface.question('\nWhat is your username on Filmow? ', (username: string) => {
-  readlineInterface.question('\nSelect which type of media do you want to export from Filmow:\n1.Movies\n2.TV Shows\n3.Both\nYour response: ', async (option: string) => {
+readlineInterface.question('\nWhat is your username on Filmow? ', async (username: string) => {
+  const userExists = await checkIfUserExists(username)
+  if (!userExists) {
+    readlineInterface.close()
+    return
+  }
+
+  readlineInterface.question(
+    `Select which type of media do you want to export from Filmow:
+    1. Movies
+    2. TV Shows
+    3. Both\n`,
+    async (option: string) => {
     if (option === '1') {
       await exportMovies(username)
     }
@@ -18,7 +31,7 @@ readlineInterface.question('\nWhat is your username on Filmow? ', (username: str
       await exportTvShows(username)
     }
 
-    if (option === ) {
+    if (option === '3') {
       await exportMovies(username)
       await exportTvShows(username)
     }
@@ -26,6 +39,26 @@ readlineInterface.question('\nWhat is your username on Filmow? ', (username: str
     readlineInterface.close()
   })
 });
+
+const checkIfUserExists = async (username: string) => {
+  const response = await fetch(`https://filmow.com/usuario/${username}`)
+
+  if (response.statusText === 'OK') {
+    const responseText = await response.text()
+    const html = parse(responseText)
+    const titleSection = html.querySelector('.title-section')
+
+    if (titleSection && titleSection?.text.includes('Vixi! - Página não encontrada')) {
+      console.log(`User ${username} not found.`)
+      return false
+    } else {
+      return true
+    }
+  } else {
+    console.log(`User ${username} not found.`)
+    return false
+  }
+}
 
 const exportMovies = async (username: string) => {
   const MoviesHandler = new Medias('movie', username)
